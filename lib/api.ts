@@ -1,4 +1,4 @@
-import axios, { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosResponse, InternalAxiosRequestConfig, AxiosError } from 'axios';
 
 // ============================================
 // TYPES
@@ -67,6 +67,12 @@ interface GetAllComplaintsParams {
   limit?: number;
 }
 
+// Error Response Type
+interface ErrorResponse {
+  success: boolean;
+  message: string;
+}
+
 // ============================================
 // AXIOS INSTANCE
 // ============================================
@@ -76,7 +82,7 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Interceptor dengan tipe yang benar
+// Request Interceptor
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token');
@@ -85,7 +91,19 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error: AxiosError) => Promise.reject(error)
+);
+
+// Response Interceptor
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError<ErrorResponse>) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+    return Promise.reject(error);
+  }
 );
 
 // ============================================

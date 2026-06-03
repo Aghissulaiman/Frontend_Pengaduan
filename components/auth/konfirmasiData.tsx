@@ -59,7 +59,7 @@ export default function CompleteProfile() {
   // Handle logout
   const handleLogout = () => {
     logout();
-    router.push('/login');
+    router.push('/auth/login');
   };
 
   // Ambil provinsi
@@ -181,7 +181,7 @@ export default function CompleteProfile() {
     }
     
     if (!token) {
-      router.replace('/login');
+      router.replace('/auth/login');
     }
   }, [token, router, isAuthLoading]);
 

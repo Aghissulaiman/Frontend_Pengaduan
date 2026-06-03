@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
@@ -13,9 +13,24 @@ import { Loader2, LogIn, User, Lock } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, user, token, isLoading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState({ username: '', password: '' });
+
+  // Jika sudah login, redirect berdasarkan role
+  useEffect(() => {
+    if (!authLoading && token && user) {
+      if (user.role === 'governor') {
+        router.push('/governor');
+      } else if (user.role === 'admin') {
+        router.push('/admin');
+      } else if (user.role === 'investigator') {
+        router.push('/investigator');
+      } else {
+        router.push('/home');
+      }
+    }
+  }, [authLoading, token, user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,13 +49,22 @@ export default function LoginPage() {
       toast.success('Login berhasil', {
         description: 'Selamat datang kembali!',
       });
-      router.push('/home');
+      // Redirect akan dihandle oleh useEffect di atas
     } else {
       toast.error('Login gagal', {
         description: 'Username atau password salah',
       });
     }
   };
+
+  // Loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 p-4">
@@ -106,7 +130,7 @@ export default function LoginPage() {
           </form>
           <p className="text-center text-sm text-slate-500 mt-6">
             Belum punya akun?{' '}
-            <Link href="/register" className="text-blue-600 hover:text-blue-700 font-medium hover:underline">
+            <Link href="/auth/register" className="text-blue-600 hover:text-blue-700 font-medium hover:underline">
               Daftar di sini
             </Link>
           </p>

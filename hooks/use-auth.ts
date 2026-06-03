@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authApi } from '@/lib/api';
 import { User } from '@/types';
+import { AxiosError } from 'axios';
 
 interface RegisterData {
   username: string;
@@ -49,14 +50,26 @@ export const useAuth = create<AuthState>()(
         set({ isLoading: true });
         try {
           const res = await authApi.login({ username, password });
+          console.log('Login response:', res.data);
+          
           if (res.data.success) {
             const { token, user } = res.data.data;
+            
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('token', token);
+              localStorage.setItem('user', JSON.stringify(user));
+              console.log('Token saved to localStorage');
+              console.log('User saved to localStorage:', user);
+            }
+            
             set({ user, token, isLoading: false });
             return true;
           }
           set({ isLoading: false });
           return false;
-        } catch {
+        } catch (error: unknown) {
+          const err = error as AxiosError;
+          console.error('Login error:', err?.response?.data || err.message);
           set({ isLoading: false });
           return false;
         }
@@ -68,7 +81,8 @@ export const useAuth = create<AuthState>()(
           const res = await authApi.register(data);
           set({ isLoading: false });
           return res.data.success;
-        } catch {
+        } catch (error: unknown) {
+          console.error('Register error:', error);
           set({ isLoading: false });
           return false;
         }
@@ -80,18 +94,29 @@ export const useAuth = create<AuthState>()(
           const res = await authApi.googleLogin(data);
           if (res.data.success) {
             const { token, user } = res.data.data;
+            
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('token', token);
+              localStorage.setItem('user', JSON.stringify(user));
+            }
+            
             set({ user, token, isLoading: false });
             return true;
           }
           set({ isLoading: false });
           return false;
-        } catch {
+        } catch (error: unknown) {
+          console.error('Google login error:', error);
           set({ isLoading: false });
           return false;
         }
       },
 
       logout: () => {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
         set({ user: null, token: null });
       },
 
@@ -102,12 +127,16 @@ export const useAuth = create<AuthState>()(
         try {
           const res = await authApi.getProfile();
           if (res.data.success) {
-            set({ user: res.data.data });
+            const user = res.data.data;
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('user', JSON.stringify(user));
+            }
+            set({ user });
           }
-        } catch (error) {
+        } catch (error: unknown) {
+          const err = error as AxiosError;
           console.error('Failed to get profile');
-          // If token expired, logout
-          if (error?.response?.status === 401) {
+          if (err?.response?.status === 401) {
             get().logout();
           }
         }
@@ -124,7 +153,6 @@ export const useAuth = create<AuthState>()(
   )
 );
 
-// Custom hook untuk menunggu hydration selesai
 export const useAuthHydrated = () => {
   const { _hasHydrated, ...auth } = useAuth();
   return { ...auth, isHydrated: _hasHydrated };

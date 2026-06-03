@@ -1,11 +1,11 @@
+import { FeedHome } from "@/components/ALL/feed/FeedHome";
 import { UserSidebar } from "@/components/layout/Navbar";
-import Home from "@/components/user/CHome/HomePage";
 
-export default function HomePage() {
+export default function Feed() {
     return (
         <>
         <UserSidebar>
-            <Home/>
+        <FeedHome/>
         </UserSidebar>
         </>
     )

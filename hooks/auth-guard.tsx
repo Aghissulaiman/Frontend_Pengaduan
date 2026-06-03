@@ -13,7 +13,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Hanya redirect setelah hydration selesai
     if (isHydrated && !token) {
-      router.replace('/login');
+      router.replace('/auth/login');
     }
   }, [token, isHydrated, router]);
 

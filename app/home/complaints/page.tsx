@@ -1,11 +1,11 @@
 import { UserSidebar } from "@/components/layout/Navbar";
-import Home from "@/components/user/CHome/HomePage";
+import { LaportPage } from "@/components/user/complaints/Laport";
 
-export default function HomePage() {
+export default function Laport() {
     return (
         <>
         <UserSidebar>
-            <Home/>
+            <LaportPage/>
         </UserSidebar>
         </>
     )

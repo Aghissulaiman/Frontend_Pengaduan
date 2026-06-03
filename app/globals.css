@@ -1,48 +1,90 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: hsl(0 0% 100%);
+  /* ========================================================
+     LIGHT MODE - Biru Muda & Putih Bersih (Elegant Corporate)
+     ======================================================== */
+  --color-background: hsl(210 40% 98%); /* Abu-abu kebiruan sangat lembut, bukan putih mati */
   --color-foreground: hsl(222.2 84% 4.9%);
-  --color-primary: hsl(221.2 83.2% 53.3%);
-  --color-primary-foreground: hsl(210 40% 98%);
+  
+  --color-primary: hsl(201 96% 32%);
+  --color-primary-light: hsl(199 89% 48%);
+  --color-primary-dark: hsl(202 83% 23%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  
   --color-secondary: hsl(210 40% 96.1%);
   --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
-  --color-muted: hsl(210 40% 96.1%);
+  
+  --color-muted: hsl(210 40% 93%);
   --color-muted-foreground: hsl(215.4 16.3% 46.9%);
-  --color-accent: hsl(210 40% 96.1%);
+  
+  --color-accent: hsl(210 40% 95%);
   --color-accent-foreground: hsl(222.2 47.4% 11.2%);
+  
   --color-destructive: hsl(0 84.2% 60.2%);
   --color-destructive-foreground: hsl(210 40% 98%);
+  
+  /* Border dilembutkan agar tidak memunculkan garis hitam kaku */
   --color-border: hsl(214.3 31.8% 91.4%);
   --color-input: hsl(214.3 31.8% 91.4%);
-  --color-ring: hsl(221.2 83.2% 53.3%);
-  --radius: 0.5rem;
+  --color-ring: hsl(201 96% 32%);
+  
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(222.2 84% 4.9%);
+  
+  --radius: 0.75rem; /* Sudut lengkungan modern kontemporer */
 }
 
+/* ========================================================
+   DARK MODE - Biru Neon & Hitam pekat (Cyberpunk Premium)
+   ======================================================== */
 .dark {
-  --color-background: hsl(222.2 84% 4.9%);
+  --color-background: hsl(222 47% 7%);
   --color-foreground: hsl(210 40% 98%);
-  --color-primary: hsl(217.2 91.2% 59.8%);
-  --color-primary-foreground: hsl(222.2 47.4% 11.2%);
-  --color-secondary: hsl(217.2 32.6% 17.5%);
+  
+  --color-primary: hsl(196 100% 48%);
+  --color-primary-light: hsl(196 100% 60%);
+  --color-primary-dark: hsl(196 100% 35%);
+  --color-primary-foreground: hsl(222 47% 7%);
+  
+  --color-secondary: hsl(217 32% 12%);
   --color-secondary-foreground: hsl(210 40% 98%);
-  --color-muted: hsl(217.2 32.6% 17.5%);
-  --color-muted-foreground: hsl(215 20.2% 65.1%);
-  --color-accent: hsl(217.2 32.6% 17.5%);
+  
+  --color-muted: hsl(217 32% 14%);
+  --color-muted-foreground: hsl(215 20% 65%);
+  
+  --color-accent: hsl(217 32% 15%);
   --color-accent-foreground: hsl(210 40% 98%);
-  --color-destructive: hsl(0 62.8% 30.6%);
+  
+  --color-destructive: hsl(0 75% 45%);
   --color-destructive-foreground: hsl(210 40% 98%);
-  --color-border: hsl(217.2 32.6% 17.5%);
-  --color-input: hsl(217.2 32.6% 17.5%);
-  --color-ring: hsl(224.3 76.3% 48%);
+  
+  /* Border mode gelap dibuat transparan-kebiruan tipis */
+  --color-border: hsl(217 32% 16%);
+  --color-input: hsl(217 32% 14%);
+  --color-ring: hsl(196 100% 50%);
+  
+  --color-card: hsl(222 47% 10%);
+  --color-card-foreground: hsl(210 40% 98%);
 }
 
+/* Pembersihan paksaan border global */
 @layer base {
-  * {
-    border-color: var(--color-border);
-  }
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+    @apply bg-background text-foreground antialiased selection:bg-primary/20;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  
+  /* Transisi perubahan tema yang smooth tanpa merusak rendering layout */
+  body, div, header, nav, aside, main, section {
+    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+                border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@layer components {
+  /* Sempurnakan komponen custom pembantu jika dibutuhkan */
+  .card-premium {
+    @apply bg-card text-card-foreground border border-border/80 shadow-xs rounded-xl overflow-hidden;
   }
 }

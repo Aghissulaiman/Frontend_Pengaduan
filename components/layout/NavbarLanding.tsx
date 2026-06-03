@@ -47,13 +47,13 @@ export function LandingNavbar() {
 
           {/* Desktop Buttons */}
           <div className="hidden md:flex items-center space-x-3">
-            <Link href="/login">
+            <Link href="/auth/login">
               <Button variant="ghost" size="sm" className="gap-2">
                 <LogIn className="h-4 w-4" />
-                Daftar
+                Login
               </Button>
             </Link>
-            <Link href="/register">
+            <Link href="/auth/register">
               <Button size="sm" className="gap-2">
                 <UserPlus className="h-4 w-4" />
                 Daftar
@@ -87,13 +87,13 @@ export function LandingNavbar() {
                 </Link>
               ))}
               <div className="pt-3 border-t flex flex-col gap-2">
-                <Link href="/login" onClick={toggleMenu}>
+                <Link href="/auth/login" onClick={toggleMenu}>
                   <Button variant="outline" className="w-full justify-center gap-2">
                     <LogIn className="h-4 w-4" />
                     Login
                   </Button>
                 </Link>
-                <Link href="/register" onClick={toggleMenu}>
+                <Link href="/auth/register" onClick={toggleMenu}>
                   <Button className="w-full justify-center gap-2">
                     <UserPlus className="h-4 w-4" />
                     Daftar

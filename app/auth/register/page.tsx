@@ -56,7 +56,7 @@ export default function RegisterPage() {
       toast.success('Registrasi berhasil', {
         description: 'Silahkan login dengan akun Anda',
       });
-      router.push('/complete-profile');
+      router.push('/auth/complete-profile');
     } else {
       toast.error('Registrasi gagal', {
         description: 'Username atau email sudah terdaftar',
@@ -179,7 +179,7 @@ export default function RegisterPage() {
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             Sudah punya akun?{' '}
-            <Link href="/complete-profile" className="text-primary hover:underline">
+            <Link href="/auth/complete-profile" className="text-primary hover:underline">
               Login di sini
             </Link>
           </p>
