@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { PostCard } from './PostCard';
@@ -15,7 +15,6 @@ import {
   CheckCircle,
   XCircle,
   TrendingUp,
-  X,
   Filter
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -51,14 +50,16 @@ export function FeedHome() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+  const [showMobileFilter, setShowMobileFilter] = useState(false);
   
   // Filters
   const [filterScope, setFilterScope] = useState<'all' | 'province'>('all');
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [showMobileFilter, setShowMobileFilter] = useState(false);
+  
+  const isFetching = useRef(false);
 
   // Fetch categories
   useEffect(() => {
@@ -76,20 +77,23 @@ export function FeedHome() {
     fetchCategories();
   }, []);
 
-  const fetchPosts = useCallback(async (reset = false) => {
-    if (!token) return;
+  // Fetch posts function
+  const fetchPosts = async (reset = false) => {
+    if (!token || isFetching.current) return;
     
     const currentPage = reset ? 1 : page;
     
+    isFetching.current = true;
     setIsLoading(true);
+    
     try {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: '10',
       });
       
-      if (filterScope === 'province' && user?.province_api_id) {
-        params.append('province_id', user.province_api_id.toString());
+      if (filterScope === 'province' && user?.province_id) {
+        params.append('province_id', user.province_id.toString());
       }
       
       if (selectedCategory) {
@@ -137,16 +141,19 @@ export function FeedHome() {
       toast.error('Gagal memuat feed');
     } finally {
       setIsLoading(false);
+      isFetching.current = false;
     }
-  }, [token, page, filterScope, selectedCategory, selectedStatus, user?.province_api_id]);
+  };
 
+  // Reset and fetch when filters change
   useEffect(() => {
     if (token) {
       setPage(1);
       fetchPosts(true);
     }
-  }, [filterScope, selectedCategory, selectedStatus]);
+  }, [filterScope, selectedCategory, selectedStatus, token]);
 
+  // Initial fetch
   useEffect(() => {
     if (token) {
       fetchPosts(true);
@@ -155,7 +162,7 @@ export function FeedHome() {
 
   const handleLoadMore = () => {
     if (!isLoading && hasMore) {
-      fetchPosts();
+      fetchPosts(false);
     }
   };
 
@@ -171,14 +178,15 @@ export function FeedHome() {
     return count;
   };
 
-  const statusOptions = [
-    { value: 'all', label: 'Semua Status', icon: TrendingUp },
-    { value: 'pending_governor', label: 'Menunggu Gubernur', icon: Clock },
-    { value: 'investigation_assigned', label: 'Investigasi', icon: Users },
-    { value: 'investigation_done', label: 'Investigasi Selesai', icon: CheckCircle },
-    { value: 'completed', label: 'Selesai', icon: CheckCircle },
-    { value: 'rejected', label: 'Ditolak', icon: XCircle },
-  ];
+const statusOptions = [
+  { value: 'all', label: 'Semua Status', icon: TrendingUp },
+  { value: 'pending_governor', label: 'Menunggu Gubernur', icon: Clock },
+  { value: 'investigation_assigned', label: 'Investigasi Ditugaskan', icon: Users },
+  { value: 'investigation_done', label: 'Investigasi Selesai', icon: CheckCircle },
+  { value: 'governor_processing', label: 'Gubernur Memproses', icon: Clock },
+  { value: 'completion_report_submitted', label: 'Laporan Akhir Dikirim', icon: Clock },
+  { value: 'completed', label: 'Selesai', icon: CheckCircle },
+];
 
   if (authLoading) {
     return (
@@ -200,12 +208,12 @@ export function FeedHome() {
       </div>
     );
   }
-
+console.log(localStorage.getItem('user'))
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="w-full">
         <div className="flex flex-col lg:flex-row">
-          {/* MAIN FEED - KIRI */}
+          {/* MAIN FEED */}
           <main className="flex-1 min-w-0 lg:pl-6 xl:pl-8">
             {/* Header Mobile */}
             <div className="lg:hidden mb-3 px-3">
@@ -225,7 +233,6 @@ export function FeedHome() {
                 </button>
               </div>
               
-              {/* Mobile Filter Panel */}
               {showMobileFilter && (
                 <div className="mt-2 bg-white rounded-lg border p-3 space-y-3">
                   <div>
@@ -286,7 +293,7 @@ export function FeedHome() {
               )}
             </div>
 
-            {/* Feed Posts - DIPERKECIL */}
+            {/* Feed Posts */}
             <div className="px-3 pr-3 lg:pl-0 lg:pr-4">
               {posts.length === 0 && !isLoading ? (
                 <div className="text-center py-12 bg-white rounded-lg">
@@ -322,7 +329,7 @@ export function FeedHome() {
             </div>
           </main>
 
-          {/* SIDEBAR KANAN - DIPERKECIL */}
+          {/* SIDEBAR KANAN */}
           <aside className="hidden lg:block w-72 shrink-0 sticky top-6 h-[calc(100vh-3rem)] overflow-y-auto">
             <div className="bg-white rounded-lg border p-4 mr-4">
               <div className="flex items-center justify-between mb-3">
@@ -334,7 +341,6 @@ export function FeedHome() {
                 )}
               </div>
 
-              {/* Wilayah */}
               <div className="mb-4">
                 <p className="text-[10px] font-semibold text-gray-400 mb-1.5">WILAYAH</p>
                 <div className="space-y-0.5">
@@ -359,7 +365,6 @@ export function FeedHome() {
                 </div>
               </div>
 
-              {/* Kategori */}
               <div className="mb-4">
                 <p className="text-[10px] font-semibold text-gray-400 mb-1.5">KATEGORI</p>
                 <div className="space-y-0.5 max-h-48 overflow-y-auto">
@@ -385,7 +390,6 @@ export function FeedHome() {
                 </div>
               </div>
 
-              {/* Status */}
               <div className="mb-4">
                 <p className="text-[10px] font-semibold text-gray-400 mb-1.5">STATUS</p>
                 <div className="space-y-0.5">
@@ -407,7 +411,6 @@ export function FeedHome() {
                 </div>
               </div>
 
-              {/* Info */}
               <div className="pt-3 border-t text-center text-[10px] text-gray-400">
                 <p>{posts.length} pengaduan</p>
               </div>

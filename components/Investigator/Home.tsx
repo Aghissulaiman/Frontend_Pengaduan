@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image'; // 🔥 GANTI img dengan Image
 
 import { useAuthHydrated } from '@/hooks/use-auth';
 
@@ -74,7 +75,7 @@ export default function InvestigatorPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalComplaints, setTotalComplaints] = useState(0);
+  // 🔥 Hapus totalComplaints jika tidak digunakan, atau biarkan saja
 
   const fetchComplaints = useCallback(async () => {
     if (!token || !user) return;
@@ -109,10 +110,9 @@ export default function InvestigatorPage() {
         const limit = data.data?.limit || 10;
         
         setComplaints(complaintsData);
-        setTotalComplaints(total);
         setTotalPages(Math.ceil(total / limit));
       } else {
-        toast.error(data.message || 'Gagal memuat data');
+        toast.error(data.message || 'Gagal memuat数据');
       }
     } catch (error) {
       console.error(error);
@@ -150,23 +150,23 @@ export default function InvestigatorPage() {
     }
   }, [isHydrated, token, user, router]);
 
+  // 🔥 Pisahkan effect untuk fetch data
   useEffect(() => {
-    if (!isHydrated) return;
-    if (token && user?.role === 'investigator') {
+    if (isHydrated && token && user?.role === 'investigator') {
       fetchComplaints();
       fetchStats();
     }
-  }, [isHydrated, token, user, fetchComplaints, fetchStats]);
+  }, [isHydrated, token, user]); // 🔥 Hapus fetchComplaints dari dependency
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (isHydrated && token && user?.role === 'investigator') {
+    if (isHydrated && token && user?.role === 'investigator') {
+      const timer = setTimeout(() => {
         setCurrentPage(1);
         fetchComplaints();
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm, fetchComplaints, isHydrated, token, user]);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [searchTerm, statusFilter]); // 🔥 Trigger hanya ketika search/filter berubah
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -218,7 +218,7 @@ export default function InvestigatorPage() {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        <span className="ml-2 text-gray-500">Memuat data...</span>
+        <span className="ml-2 text-gray-500">Memuat数据...</span>
       </div>
     );
   }
@@ -322,7 +322,7 @@ export default function InvestigatorPage() {
           </CardContent>
         </Card>
 
-        {/* LIST PENGADUAN - KLIK CARD LANGSUNG KE DETAIL */}
+        {/* LIST PENGADUAN */}
         <Card>
           <CardContent className="pt-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -385,11 +385,13 @@ export default function InvestigatorPage() {
                           </p>
 
                           {complaint.photo && (
-                            <img 
-                              src={complaint.photo} 
-                              alt="Bukti" 
-                              className="mt-2 w-16 h-16 object-cover rounded-lg"
-                            />
+                            <div className="mt-2 relative w-16 h-16">
+                              <img 
+                                src={complaint.photo} 
+                                alt="Bukti" 
+                                className="w-full h-full object-cover rounded-lg"
+                              />
+                            </div>
                           )}
                         </div>
                       </div>

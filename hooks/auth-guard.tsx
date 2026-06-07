@@ -8,16 +8,24 @@ import { Loader2 } from 'lucide-react';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { token, isHydrated } = useAuthHydrated();
+  const { token, user, isHydrated } = useAuthHydrated(); // tambah user
 
   useEffect(() => {
-    // Hanya redirect setelah hydration selesai
-    if (isHydrated && !token) {
-      router.replace('/auth/login');
+    if (isHydrated) {
+      // Cek login
+      if (!token) {
+        router.replace('/auth/login');
+        return;
+      }
+      
+      // Cek province (khusus role user)
+      if (user?.role === 'user' && (!user?.province_api_id || user?.province_api_id === 0)) {
+        router.replace('/auth/complete-profile');
+        return;
+      }
     }
-  }, [token, isHydrated, router]);
+  }, [token, user, isHydrated, router]);
 
-  // Tampilkan loading selama hydration
   if (!isHydrated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -29,8 +37,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Setelah hydration, cek token
-  if (!token) {
+  if (!token) return null;
+  
+  // Cek province untuk role user
+  if (user?.role === 'user' && (!user?.province_api_id || user?.province_api_id === 0)) {
     return null;
   }
 

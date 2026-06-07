@@ -12,29 +12,18 @@ import {
   Menu,
   ChevronLeft,
   ChevronRight,
-  Search,
   ChevronDown,
   Sun,
   Moon,
   MessageSquare,
-  Send,
-  X,
-  MessageCircle,
-  Rss,
-  Heart,
-  MessageCircleMore,
-  Share2,
-  Plus,
   Home,
   FileText,
   Clock,
-  Inbox,
-  Activity,
-  BarChart3
+  Rss,
+  Bell
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,26 +45,6 @@ interface UserSidebarProps {
   children?: React.ReactNode;
 }
 
-interface Message {
-  id: string;
-  senderId: string;
-  senderName: string;
-  text: string;
-  timestamp: string;
-  isAdmin: boolean;
-}
-
-interface FeedPost {
-  id: string;
-  author: string;
-  role: string;
-  content: string;
-  likes: number;
-  commentsCount: number;
-  timeAgo: string;
-  hasLiked: boolean;
-}
-
 export function UserSidebar({ children }: UserSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -83,43 +52,10 @@ export function UserSidebar({ children }: UserSidebarProps) {
   
   const [collapsed, setCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [darkMode, setDarkMode] = useState(false);
-  const [activeWidget, setActiveWidget] = useState<'none' | 'chat' | 'feed'>('none');
+  const [notificationCount, setNotificationCount] = useState(3); // Contoh notifikasi
 
-  // Chat States
-  const [chatMessages, setChatMessages] = useState<Message[]>([
-    { id: '1', senderId: 'admin', senderName: 'Admin', text: 'Selamat datang! Ada yang bisa kami bantu?', timestamp: '10:30', isAdmin: true },
-    { id: '2', senderId: 'user', senderName: 'Anda', text: 'Halo, saya ingin menanyakan status pengaduan', timestamp: '10:32', isAdmin: false }
-  ]);
-  const [inputMessage, setInputMessage] = useState('');
-  const [unreadChatCount, setUnreadChatCount] = useState(1);
-
-  // Feed States
-  const [feedPosts, setFeedPosts] = useState<FeedPost[]>([
-    {
-      id: 'post-1',
-      author: 'Budi Santoso',
-      role: 'Warga',
-      content: 'Taman kota sekarang bersih banget! Makasih Pak Gub!',
-      likes: 42,
-      commentsCount: 5,
-      timeAgo: '12 menit lalu',
-      hasLiked: false
-    },
-    {
-      id: 'post-2',
-      author: 'Siti Aminah',
-      role: 'UMKM',
-      content: 'Mohon info bantuan modal UMKM',
-      likes: 18,
-      commentsCount: 12,
-      timeAgo: '1 jam lalu',
-      hasLiked: false
-    }
-  ]);
-  const [newPostContent, setNewPostContent] = useState('');
-
+  // Load dark mode preference
   useEffect(() => {
     const isDark = localStorage.getItem('darkMode') === 'true';
     setDarkMode(isDark);
@@ -130,6 +66,7 @@ export function UserSidebar({ children }: UserSidebarProps) {
     }
   }, []);
 
+  // Toggle dark mode
   const toggleDarkMode = () => {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
@@ -141,78 +78,14 @@ export function UserSidebar({ children }: UserSidebarProps) {
     }
   };
 
-  // MENU NAVIGASI UNTUK WARGA (dengan link ke halaman chat)
+  // MENU NAVIGASI UNTUK WARGA
   const navLinks = [
     { href: '/home', label: 'Beranda', icon: Home, badge: null },
-    { href: '/home/complaints', label: 'Lapor', icon: FileText, badge: '2' },
+    { href: '/home/complaints', label: 'Lapor', icon: FileText, badge: null },
     { href: '/home/feed', label: 'Feed Publik', icon: Rss, badge: 'New' },
-    { href: '/home/chats', label: 'Pesan / Chat', icon: MessageSquare, badge: unreadChatCount > 0 ? String(unreadChatCount) : null },
+    { href: '/home/chat', label: 'Pesan', icon: MessageSquare, badge: null },
     { href: '/home/history', label: 'Riwayat', icon: Clock, badge: null },
   ];
-
-  // Kirim chat
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim()) return;
-
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      senderId: 'user',
-      senderName: user?.fullname || 'Anda',
-      text: inputMessage,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isAdmin: false
-    };
-
-    setChatMessages([...chatMessages, newMessage]);
-    setInputMessage('');
-
-    setTimeout(() => {
-      const autoReply: Message = {
-        id: (Date.now() + 1).toString(),
-        senderId: 'admin',
-        senderName: 'Admin',
-        text: 'Terima kasih, akan kami proses.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isAdmin: true
-      };
-      setChatMessages(prev => [...prev, autoReply]);
-      if (activeWidget !== 'chat') setUnreadChatCount(prev => prev + 1);
-    }, 2000);
-  };
-
-  // Buat post feed
-  const handleCreatePost = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPostContent.trim()) return;
-
-    const newPost: FeedPost = {
-      id: `post-${Date.now()}`,
-      author: user?.fullname || 'Warga',
-      role: 'Warga',
-      content: newPostContent,
-      likes: 0,
-      commentsCount: 0,
-      timeAgo: 'Baru saja',
-      hasLiked: false
-    };
-
-    setFeedPosts([newPost, ...feedPosts]);
-    setNewPostContent('');
-  };
-
-  const handleLikePost = (postId: string) => {
-    setFeedPosts(feedPosts.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          likes: post.hasLiked ? post.likes - 1 : post.likes + 1,
-          hasLiked: !post.hasLiked
-        };
-      }
-      return post;
-    }));
-  };
 
   const getInitials = (name: string) => {
     return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
@@ -232,16 +105,9 @@ export function UserSidebar({ children }: UserSidebarProps) {
     return pathname.startsWith(href);
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/user/track?search=${encodeURIComponent(searchQuery)}`);
-    }
-  };
-
   return (
     <div className={`min-h-screen ${darkMode ? 'dark bg-slate-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
-      {/* TOP NAVBAR - SAMA PERSIS DENGAN GOVERNOR */}
+      {/* TOP NAVBAR */}
       <nav 
         className={`fixed top-0 right-0 z-40 border-b shadow-sm transition-all duration-300 left-0 ${
           collapsed ? 'md:left-20' : 'md:left-64'
@@ -257,11 +123,10 @@ export function UserSidebar({ children }: UserSidebarProps) {
             >
               {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </Button>
-            
-            
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Dark Mode Toggle */}
             <Button
               variant="ghost"
               size="icon"
@@ -271,11 +136,52 @@ export function UserSidebar({ children }: UserSidebarProps) {
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
 
+            {/* Notification Button dengan Badge Merah */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className={`w-5 h-5 ${darkMode ? 'text-slate-400' : 'text-gray-600'}`} />
+                  {notificationCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-900" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className={`w-96 p-0 ${darkMode ? 'bg-slate-900 border-slate-700' : ''}`}>
+                <div className={`p-4 border-b ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
+                  <div className="flex justify-between items-center">
+                    <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Notifikasi</h3>
+                    <button className="text-xs text-blue-500 hover:text-blue-600">
+                      Tandai semua dibaca
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  <DropdownMenuItem className={`flex flex-col items-start gap-1 p-4 cursor-pointer ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-gray-50'}`}>
+                    <p className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>Pengaduan diproses</p>
+                    <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>Pengaduan Anda sedang diproses oleh tim</p>
+                    <p className={`text-xs ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>2 jam yang lalu</p>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className={`flex flex-col items-start gap-1 p-4 cursor-pointer ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-gray-50'}`}>
+                    <p className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>Status pengaduan berubah</p>
+                    <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-gray-500'}`}>Pengaduan Anda telah selesai diproses</p>
+                    <p className={`text-xs ${darkMode ? 'text-slate-500' : 'text-gray-400'}`}>1 hari yang lalu</p>
+                  </DropdownMenuItem>
+                </div>
+                <div className={`p-3 border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
+                  <button className="w-full text-center text-sm text-blue-500 hover:text-blue-600">
+                    Lihat semua notifikasi
+                  </button>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Province Badge */}
             <div className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg ${darkMode ? 'bg-blue-500/20' : 'bg-blue-50'}`}>
               <MapPin className={`h-3.5 w-3.5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
               <span className={`text-xs font-medium ${darkMode ? 'text-blue-400' : 'text-blue-700'}`}>Warga</span>
             </div>
 
+            {/* User Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className={`flex items-center gap-3 px-2 py-1.5 h-auto rounded-lg ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-gray-100'}`}>
@@ -298,13 +204,24 @@ export function UserSidebar({ children }: UserSidebarProps) {
                   <span className="text-xs text-gray-400 block">{user?.email}</span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild><Link href="/profile"><User className="mr-2 h-4 w-4" />Profil</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/settings"><Settings className="mr-2 h-4 w-4" />Pengaturan</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/profile">
+                    <User className="mr-2 h-4 w-4" />Profil
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings">
+                    <Settings className="mr-2 h-4 w-4" />Pengaturan
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-500"><LogOut className="mr-2 h-4 w-4" />Keluar</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} className="text-red-500">
+                  <LogOut className="mr-2 h-4 w-4" />Keluar
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Mobile menu button */}
             <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(true)} className="md:hidden">
               <Menu className="w-4 h-4" />
             </Button>
@@ -313,7 +230,12 @@ export function UserSidebar({ children }: UserSidebarProps) {
       </nav>
 
       {/* Mobile overlay */}
-      {isMobileOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsMobileOpen(false)} />}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
 
       {/* SIDEBAR NAVIGATION */}
       <aside className={`fixed top-0 left-0 h-full transition-all duration-300 z-50 flex flex-col shadow-xl ${darkMode ? 'bg-slate-950 border-r border-slate-800' : 'bg-white border-r border-gray-200'} ${collapsed ? 'w-20' : 'w-64'} ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
@@ -321,141 +243,90 @@ export function UserSidebar({ children }: UserSidebarProps) {
         {/* LOGO */}
         <div className={`flex items-center justify-between px-5 py-4 border-b h-16 ${darkMode ? 'border-slate-800' : 'border-gray-200'}`}>
           <Link href="/home" className="flex items-center gap-2.5 mx-auto md:mx-0">
-            <div className="rounded-xl bg-blue-500 p-2 text-white"><Home className="h-5 w-5" /></div>
-            {!collapsed && <span className="font-bold text-lg">Lapor<span className="text-blue-500">Gubernur</span></span>}
+            <div className="rounded-xl bg-blue-500 p-2 text-white">
+              <Home className="h-5 w-5" />
+            </div>
+            {!collapsed && (
+              <span className="font-bold text-lg">
+                Lapor<span className="text-blue-500">Gubernur</span>
+              </span>
+            )}
           </Link>
         </div>
 
+        {/* User Info Mini (collapsed mode) */}
+        {collapsed && (
+          <div className={`px-3 py-4 border-b ${darkMode ? 'border-slate-800' : 'border-gray-200'}`}>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Avatar className="w-12 h-12 mx-auto ring-2 ring-blue-500/50">
+                    <AvatarFallback className="bg-blue-500 text-white font-bold">
+                      {getInitials(user?.fullname || user?.username || 'U')}
+                    </AvatarFallback>
+                  </Avatar>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{user?.fullname || user?.username}</p>
+                  <p className="text-xs">Warga</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
+
         {/* MENU NAVIGASI */}
         <nav className="flex-1 py-6 overflow-y-auto px-3">
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const active = isActive(link.href);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 transition-all ${collapsed ? 'justify-center' : ''} ${
-                  active ? 'bg-blue-500 text-white shadow-md' : darkMode ? 'text-slate-300 hover:bg-white/5' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-                }`}
-              >
-                <Icon className="w-5 h-5 shrink-0" />
-                {!collapsed && (
-                  <>
-                    <span className="text-sm font-medium flex-1">{link.label}</span>
-                    {link.badge && (
-                      <Badge className={`${link.badge === 'New' ? 'bg-emerald-500' : 'bg-red-500'} text-white text-[10px] px-1.5`}>
-                        {link.badge}
-                      </Badge>
-                    )}
-                  </>
-                )}
-              </Link>
-            );
-          })}
+          <div className="space-y-1">
+            {navLinks.map((link) => {
+              const Icon = link.icon;
+              const active = isActive(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 transition-all ${collapsed ? 'justify-center' : ''} ${
+                    active 
+                      ? 'bg-blue-500 text-white shadow-md' 
+                      : darkMode 
+                        ? 'text-slate-300 hover:bg-white/5' 
+                        : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
+                  }`}
+                >
+                  <Icon className="w-5 h-5 shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="text-sm font-medium flex-1">{link.label}</span>
+                      {link.badge && (
+                        <Badge className={`${link.badge === 'New' ? 'bg-emerald-500' : 'bg-red-500'} text-white text-[10px] px-1.5`}>
+                          {link.badge}
+                        </Badge>
+                      )}
+                    </>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
+
+        {/* FOOTER */}
+        {!collapsed && (
+          <div className={`p-4 border-t ${darkMode ? 'border-slate-800' : 'border-gray-200'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-gray-400'}`}>Version 2.0.0</p>
+                <p className={`text-[10px] ${darkMode ? 'text-slate-500' : 'text-gray-300'}`}>© 2024 LaporGubernur</p>
+              </div>
+              <Building2 className={`w-4 h-4 ${darkMode ? 'text-slate-500' : 'text-gray-300'}`} />
+            </div>
+          </div>
+        )}
       </aside>
 
       {/* MAIN CONTENT */}
       <div className={`transition-all duration-300 min-h-screen pt-16 ${collapsed ? 'md:ml-20' : 'md:ml-64'}`}>
         <main className="p-6">{children}</main>
-      </div>
-
-      {/* ========== FLOATING MULTI-WIDGET CONTROLLER (CHAT & FEED) ========== */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-        
-        {/* Panel Chat Floating */}
-        {activeWidget === 'chat' && (
-          <div className={`w-96 h-[500px] rounded-2xl shadow-2xl flex flex-col border overflow-hidden ${darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white text-gray-900'}`}>
-            <div className="bg-blue-600 p-4 text-white flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                <h4 className="text-sm font-semibold">Layanan Pengaduan</h4>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setActiveWidget('none')} className="text-white hover:bg-white/10 h-8 w-8"><X className="w-4 h-4" /></Button>
-            </div>
-            <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 dark:bg-slate-950/40">
-              {chatMessages.map((msg) => (
-                <div key={msg.id} className={`flex flex-col ${msg.isAdmin ? 'items-start' : 'items-end'}`}>
-                  <span className="text-[10px] text-gray-400 mb-1 px-1">{msg.senderName}</span>
-                  <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${!msg.isAdmin ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-tl-none border'}`}>
-                    <p>{msg.text}</p>
-                    <span className="text-[9px] block text-right mt-1 opacity-70">{msg.timestamp}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <form onSubmit={handleSendMessage} className="p-3 border-t flex items-center gap-2">
-              <Input type="text" placeholder="Tulis pesan..." value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} className="flex-1" />
-              <Button type="submit" size="icon" className="bg-blue-600 hover:bg-blue-700 text-white"><Send className="w-4 h-4" /></Button>
-            </form>
-          </div>
-        )}
-
-        {/* Panel Feed Floating */}
-        {activeWidget === 'feed' && (
-          <div className={`w-96 h-[500px] rounded-2xl shadow-2xl flex flex-col border overflow-hidden ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-gray-200'}`}>
-            <div className="bg-emerald-600 p-4 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Rss className="w-4 h-4" />
-                <h4 className="text-sm font-semibold">Feed Aspirasi Warga</h4>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setActiveWidget('none')} className="text-white hover:bg-white/10 h-8 w-8"><X className="w-4 h-4" /></Button>
-            </div>
-            <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50 dark:bg-slate-950/20">
-              <form onSubmit={handleCreatePost} className={`p-3 rounded-xl border space-y-2 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-100'}`}>
-                <textarea placeholder="Bagikan aspirasi..." value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} className="w-full text-xs p-2 rounded-md bg-slate-50 dark:bg-slate-900 border-none outline-none resize-none h-14" />
-                <div className="flex justify-end"><Button type="submit" size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7 gap-1"><Plus className="w-3 h-3" />Bagikan</Button></div>
-              </form>
-              {feedPosts.map((post) => (
-                <div key={post.id} className={`p-4 rounded-xl border space-y-3 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-100'}`}>
-                  <div className="flex items-center gap-2.5">
-                    <Avatar className="h-8 w-8"><AvatarFallback className="bg-slate-200 dark:bg-slate-700 text-[10px] font-bold">{getInitials(post.author)}</AvatarFallback></Avatar>
-                    <div><h5 className="text-xs font-bold">{post.author}</h5><p className="text-[10px] text-gray-400">{post.role} • {post.timeAgo}</p></div>
-                  </div>
-                  <p className="text-xs leading-relaxed">{post.content}</p>
-                  <div className="flex items-center gap-4 pt-1 border-t dark:border-slate-700 text-gray-400">
-                    <button onClick={() => handleLikePost(post.id)} className={`flex items-center gap-1 text-[11px] transition-colors ${post.hasLiked ? 'text-red-500 font-medium' : 'hover:text-red-500'}`}>
-                      <Heart className={`w-3.5 h-3.5 ${post.hasLiked ? 'fill-current' : ''}`} />{post.likes}
-                    </button>
-                    <button className="flex items-center gap-1 text-[11px] hover:text-blue-500"><MessageCircleMore className="w-3.5 h-3.5" />{post.commentsCount}</button>
-                    <button className="flex items-center gap-1 text-[11px] hover:text-gray-600 ml-auto"><Share2 className="w-3.5 h-3.5" /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tombol Floating */}
-        <div className="flex gap-2">
-          <Button 
-            onClick={() => setActiveWidget(activeWidget === 'feed' ? 'none' : 'feed')}
-            className={`h-12 px-4 rounded-full shadow-xl flex items-center gap-2 transition-all ${
-              activeWidget === 'feed' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-white'
-            }`}
-          >
-            <Rss className="w-4 h-4 text-emerald-500" />
-            <span className="text-xs font-medium">Feed Warga</span>
-          </Button>
-
-          <Button 
-            onClick={() => {
-              setActiveWidget(activeWidget === 'chat' ? 'none' : 'chat');
-              setUnreadChatCount(0);
-            }}
-            className={`h-12 w-12 rounded-full shadow-xl flex items-center justify-center relative transition-all ${
-              activeWidget === 'chat' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-white'
-            }`}
-          >
-            <MessageCircle className="w-5 h-5 text-blue-500" />
-            {unreadChatCount > 0 && activeWidget !== 'chat' && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold">
-                {unreadChatCount}
-              </span>
-            )}
-          </Button>
-        </div>
       </div>
     </div>
   );

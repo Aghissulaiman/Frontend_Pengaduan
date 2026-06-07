@@ -24,7 +24,7 @@ import {
   Send,
   X,
   MessageCircle,
-  Rss, // Icon baru untuk Feed
+  Rss,
   Heart,
   MessageCircleMore,
   Share2,
@@ -42,12 +42,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 
 interface GovernorSidebarProps {
@@ -63,7 +57,6 @@ interface Message {
   isAdmin: boolean;
 }
 
-// --- INTERFACE BARU UNTUK FITUR FEED ---
 interface FeedPost {
   id: string;
   author: string;
@@ -86,12 +79,17 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('darkMode') === 'true';
+    }
+    return false;
+  });
 
-  // Widget Active State (Mengatur apakah menampilkan panel Chat atau Feed di pojok)
+  // Widget Active State
   const [activeWidget, setActiveWidget] = useState<'none' | 'chat' | 'feed'>('none');
 
-  // --- FITUR CHAT STATES ---
+  // Chat States
   const [chatMessages, setChatMessages] = useState<Message[]>([
     { id: '1', senderId: 'user1', senderName: 'Budi Santoso', text: 'Selamat siang Pak, laporan saya mengenai jalan rusak di daerah Ringroad belum ditanggapi.', timestamp: '10:30', isAdmin: false },
     { id: '2', senderId: 'gov', senderName: 'Gubernur', text: 'Halo Budi, tim dinas PU sedang menuju ke lokasi untuk survei awal.', timestamp: '10:32', isAdmin: true }
@@ -99,7 +97,7 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
   const [inputMessage, setInputMessage] = useState('');
   const [unreadChatCount, setUnreadChatCount] = useState(1);
 
-  // --- FITUR FEED STATES (Mock Data Real-time Feed) ---
+  // Feed States
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([
     {
       id: 'post-1',
@@ -124,40 +122,37 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
   ]);
   const [newPostContent, setNewPostContent] = useState('');
 
-  // Load dark mode preference
+  // Handle dark mode side effects
   useEffect(() => {
-    const isDark = localStorage.getItem('darkMode') === 'true';
-    setDarkMode(isDark);
-    if (isDark) {
+    if (darkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, []);
+    localStorage.setItem('darkMode', String(darkMode));
+  }, [darkMode]);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-    localStorage.setItem('darkMode', String(newDarkMode));
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    setDarkMode(!darkMode);
   };
 
-  // --- MENU NAVIGASI UPDATE (Ditambahkan Menu Feed) ---
+  // Close mobile menu function
+  const closeMobileMenu = () => {
+    setIsMobileOpen(false);
+  };
+
+  // Navigation menu
   const navLinks = [
     { href: '/governor', label: 'Dashboard', icon: LayoutDashboard, badge: null },
-    { href: '/governor/feed', label: 'Feed Publik', icon: Rss, badge: 'New' }, // Tambahan Menu Feed
+    { href: '/governor/feed', label: 'Feed Publik', icon: Rss, badge: 'New' },
     { href: '/governor/complaints', label: 'Pengaduan', icon: Inbox, badge: '12' },
     { href: '/governor/chats', label: 'Pesan / Chat', icon: MessageSquare, badge: unreadChatCount > 0 ? String(unreadChatCount) : null },
     { href: '/governor/investigations', label: 'Investigasi', icon: Activity, badge: '3' },
     { href: '/governor/reports', label: 'Laporan', icon: BarChart3, badge: null },
   ];
 
-  // --- FITUR LOGIKA KIRIM CHAT ---
+  // Chat logic
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
@@ -188,7 +183,7 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
     }, 2000);
   };
 
-  // --- FITUR LOGIKA FEED INTERAKTIF ---
+  // Feed logic
   const handleCreatePost = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPostContent.trim()) return;
@@ -234,22 +229,19 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
       75: 'Gorontalo', 76: 'Sulawesi Barat', 81: 'Maluku', 82: 'Maluku Utara',
       91: 'Papua', 92: 'Papua Barat',
     };
-    const provinceId = user?.province_api_id || user?.province_id;
+    const provinceId = user?.province_id; // Fixed: using province_id instead of province_api_id
     return provinceMap[provinceId as number] || 'Provinsi';
   };
 
   const getInitials = (name: string) => {
-    return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+    return name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'AD';
   };
 
   const handleLogout = () => {
     logout();
+    closeMobileMenu();
     router.push('/auth/login');
   };
-
-  useEffect(() => {
-    setIsMobileOpen(false);
-  }, [pathname]);
 
   const isActive = (href: string) => {
     if (href === '/governor') return pathname === href;
@@ -259,6 +251,7 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      closeMobileMenu();
       router.push(`/governor/complaints?search=${encodeURIComponent(searchQuery)}`);
     }
   };
@@ -335,10 +328,23 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
                   <span className="text-xs text-gray-400 block">{user?.email}</span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className={darkMode ? 'bg-slate-700' : ''} />
-                <DropdownMenuItem asChild><Link href="/governor/profile" className="w-full flex items-center"><User className="mr-2 h-4 w-4" />Profil</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/governor/settings" className="w-full flex items-center"><Settings className="mr-2 h-4 w-4" />Pengaturan</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/governor/profile" className="w-full flex items-center" onClick={closeMobileMenu}>
+                    <User className="mr-2 h-4 w-4" />
+                    Profil
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/governor/settings" className="w-full flex items-center" onClick={closeMobileMenu}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Pengaturan
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator className={darkMode ? 'bg-slate-700' : ''} />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-500"><LogOut className="mr-2 h-4 w-4" />Keluar</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} className="text-red-500">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Keluar
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -350,14 +356,22 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
       </nav>
 
       {/* Mobile overlay */}
-      {isMobileOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsMobileOpen(false)} />}
+      {isMobileOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={closeMobileMenu} />
+      )}
 
       {/* Sidebar Navigation */}
       <aside className={`fixed top-0 left-0 h-full transition-all duration-300 z-50 flex flex-col shadow-xl ${darkMode ? 'bg-slate-950 border-r border-slate-800' : 'bg-white border-r border-gray-200'} ${collapsed ? 'w-20' : 'w-64'} ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className={`flex items-center justify-between px-5 py-4 border-b h-16 ${darkMode ? 'border-slate-800' : 'border-gray-200'}`}>
-          <Link href="/governor" className="flex items-center gap-2.5 mx-auto md:mx-0">
-            <div className="rounded-xl bg-blue-500 p-2 text-white"><Building2 className="h-5 w-5" /></div>
-            {!collapsed && <span className="font-bold text-lg">Lapor<span className="text-blue-500">Gubernur</span></span>}
+          <Link href="/governor" className="flex items-center gap-2.5 mx-auto md:mx-0" onClick={closeMobileMenu}>
+            <div className="rounded-xl bg-blue-500 p-2 text-white">
+              <Building2 className="h-5 w-5" />
+            </div>
+            {!collapsed && (
+              <span className="font-bold text-lg">
+                Lapor<span className="text-blue-500">Gubernur</span>
+              </span>
+            )}
           </Link>
         </div>
 
@@ -369,6 +383,7 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={closeMobileMenu}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 transition-all ${collapsed ? 'justify-center' : ''} ${
                   active ? 'bg-blue-500 text-white shadow-md' : darkMode ? 'text-slate-300 hover:bg-white/5' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
                 }`}
@@ -395,10 +410,10 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
         <main className="p-6">{children}</main>
       </div>
 
-      {/* --- FLOATING MULTI-WIDGET CONTROLLER (CHAT & FEED) --- */}
+      {/* Floating Multi-Widget Controller */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
         
-        {/* Panel Tampilan Widget Aktif */}
+        {/* Chat Panel */}
         {activeWidget === 'chat' && (
           <div className={`w-96 h-[500px] rounded-2xl shadow-2xl flex flex-col border border-slate-200 dark:border-slate-700 overflow-hidden ${darkMode ? 'bg-slate-900 text-white' : 'bg-white text-gray-900'}`}>
             <div className="bg-blue-600 p-4 text-white flex items-center justify-between">
@@ -406,7 +421,9 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
                 <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
                 <h4 className="text-sm font-semibold">Ruang Percakapan Warga</h4>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setActiveWidget('none')} className="text-white hover:bg-white/10 h-8 w-8"><X className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setActiveWidget('none')} className="text-white hover:bg-white/10 h-8 w-8">
+                <X className="w-4 h-4" />
+              </Button>
             </div>
             <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 dark:bg-slate-950/40">
               {chatMessages.map((msg) => (
@@ -420,12 +437,21 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
               ))}
             </div>
             <form onSubmit={handleSendMessage} className="p-3 border-t flex items-center gap-2 border-slate-100 dark:border-slate-700">
-              <Input type="text" placeholder="Tulis tanggapan..." value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} className="flex-1" />
-              <Button type="submit" size="icon" className="bg-blue-600 hover:bg-blue-700 text-white"><Send className="w-4 h-4" /></Button>
+              <Input 
+                type="text" 
+                placeholder="Tulis tanggapan..." 
+                value={inputMessage} 
+                onChange={(e) => setInputMessage(e.target.value)} 
+                className="flex-1" 
+              />
+              <Button type="submit" size="icon" className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Send className="w-4 h-4" />
+              </Button>
             </form>
           </div>
         )}
 
+        {/* Feed Panel */}
         {activeWidget === 'feed' && (
           <div className={`w-96 h-[500px] rounded-2xl shadow-2xl flex flex-col border border-slate-200 dark:border-slate-700 overflow-hidden ${darkMode ? 'bg-slate-900 text-white' : 'bg-white text-gray-900'}`}>
             <div className="bg-emerald-600 p-4 text-white flex items-center justify-between">
@@ -433,12 +459,13 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
                 <Rss className="w-4 h-4" />
                 <h4 className="text-sm font-semibold">Feed Aspirasi Regional</h4>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setActiveWidget('none')} className="text-white hover:bg-white/10 h-8 w-8"><X className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setActiveWidget('none')} className="text-white hover:bg-white/10 h-8 w-8">
+                <X className="w-4 h-4" />
+              </Button>
             </div>
             
-            {/* Area Konten Utama Feed */}
             <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50 dark:bg-slate-950/20">
-              {/* Form Cepat Buat Post Baru oleh Gubernur */}
+              {/* Create Post Form */}
               <form onSubmit={handleCreatePost} className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 space-y-2">
                 <textarea
                   placeholder="Bagikan info atau maklumat daerah hari ini..."
@@ -453,7 +480,7 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
                 </div>
               </form>
 
-              {/* Loop Pemetaan Postingan Warga */}
+              {/* Feed Posts */}
               {feedPosts.map((post) => (
                 <div key={post.id} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 space-y-3">
                   <div className="flex items-center gap-2.5">
@@ -469,7 +496,7 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
                   </div>
                   <p className="text-xs leading-relaxed text-gray-700 dark:text-gray-300">{post.content}</p>
                   
-                  {/* Tombol Interaksi Sosial (Like/Comment) */}
+                  {/* Interaction Buttons */}
                   <div className="flex items-center gap-4 pt-1 border-t border-slate-100 dark:border-slate-700 text-gray-400">
                     <button 
                       onClick={() => handleLikePost(post.id)}
@@ -492,9 +519,8 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
           </div>
         )}
 
-        {/* Tombol Pemicu Floating (Aksi Toggling) */}
+        {/* Floating Action Buttons */}
         <div className="flex gap-2">
-          {/* Tombol Trigger Feed */}
           <Button 
             onClick={() => setActiveWidget(activeWidget === 'feed' ? 'none' : 'feed')}
             className={`h-12 px-4 rounded-full shadow-xl flex items-center gap-2 transition-all ${
@@ -505,7 +531,6 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
             <span className="text-xs font-medium">Feed Warga</span>
           </Button>
 
-          {/* Tombol Trigger Chat */}
           <Button 
             onClick={() => {
               setActiveWidget(activeWidget === 'chat' ? 'none' : 'chat');
@@ -523,7 +548,6 @@ export function GovernorSidebar({ children }: GovernorSidebarProps) {
             )}
           </Button>
         </div>
-
       </div>
     </div>
   );

@@ -1,16 +1,14 @@
 import InvestigatorComplaintDetailPage from "@/components/Investigator/Complain";
-import { InvestigatorNavbar } from "@/components/layout/NavbarInvestigator";
+import { InvestigatorSidebar } from "@/components/layout/NavbarInvestigator";
 
-export default function InvestigatorLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
+export default function InvestigasiD(){
+  return(
+
     <>
-      <InvestigatorNavbar/>
+    <InvestigatorSidebar>
       <InvestigatorComplaintDetailPage/>
-      <main>{children}</main>
+    </InvestigatorSidebar>
     </>
-  );
+
+  )
 }

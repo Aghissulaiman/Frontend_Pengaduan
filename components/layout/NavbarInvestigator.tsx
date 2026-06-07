@@ -18,15 +18,11 @@ import {
   ChevronDown,
   ClipboardList,
   Clock,
-  FileText,
   CheckCircle,
   Bell,
   Sun,
   Moon,
   Eye,
-  Send,
-  MessageSquare,
-  X,
   Activity,
   BarChart3
 } from 'lucide-react';
@@ -62,18 +58,23 @@ export function InvestigatorSidebar({ children }: InvestigatorSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    return localStorage.getItem('darkMode') === 'true';
+  });
 
-  // Load dark mode preference
   useEffect(() => {
-    const isDark = localStorage.getItem('darkMode') === 'true';
-    setDarkMode(isDark);
-    if (isDark) {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (darkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, []);
+  }, [darkMode]);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -108,7 +109,7 @@ export function InvestigatorSidebar({ children }: InvestigatorSidebarProps) {
       75: 'Gorontalo', 76: 'Sulawesi Barat', 81: 'Maluku', 82: 'Maluku Utara',
       91: 'Papua', 92: 'Papua Barat',
     };
-    const provinceId = user?.province_api_id || user?.province_id;
+    const provinceId = user?.province_id;
     return provinceMap[provinceId as number] || 'Provinsi';
   };
 
@@ -126,9 +127,9 @@ export function InvestigatorSidebar({ children }: InvestigatorSidebarProps) {
     router.push('/auth/login');
   };
 
-  useEffect(() => {
+  const handleNavLinkClick = () => {
     setIsMobileOpen(false);
-  }, [pathname]);
+  };
 
   const isActive = (href: string) => {
     if (href === '/investigator') {
@@ -387,6 +388,7 @@ export function InvestigatorSidebar({ children }: InvestigatorSidebarProps) {
                 <Link
                   key={link.href}
                   href={link.href}
+                  onClick={handleNavLinkClick}
                   className={`
                     flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
                     ${collapsed ? 'justify-center' : ''}
