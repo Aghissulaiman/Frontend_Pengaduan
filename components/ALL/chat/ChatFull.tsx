@@ -65,12 +65,6 @@ interface ChatUser {
   email: string;
   role: string;
   avatar?: string;
-  is_follow?: boolean;
-}
-
-interface FollowStatus {
-  is_following: boolean;
-  is_followed_by: boolean;
 }
 
 export default function ChatPage() {
@@ -79,13 +73,13 @@ export default function ChatPage() {
   
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [followStatus, setFollowStatus] = useState<FollowStatus | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isLoadingFollow, setIsLoadingFollow] = useState(false);
   const [messageInput, setMessageInput] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -95,8 +89,34 @@ export default function ChatPage() {
   const searchTimeout = useRef<NodeJS.Timeout>();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const getInitials = (name: string) => name?.charAt(0).toUpperCase() || 'U';
+
+  // Get other participant info
+  const getOtherParticipant = (conv: Conversation) => {
+    if (conv.participant1_id === user?.id) {
+      return {
+        name: conv.participant2_name,
+        id: conv.participant2_id,
+        avatar: conv.participant2_avatar
+      };
+    }
+    return {
+      name: conv.participant1_name,
+      id: conv.participant1_id,
+      avatar: conv.participant1_avatar
+    };
+  };
+
+  const otherParticipant = selectedConversation ? getOtherParticipant(selectedConversation) : null;
+
+  // Scroll to bottom of messages
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
 
   // Fetch conversations
   const fetchConversations = useCallback(async () => {
@@ -118,29 +138,25 @@ export default function ChatPage() {
     }
   }, [token]);
 
-  // Fetch follow status for selected user
-  const fetchFollowStatus = useCallback(async (userId: number) => {
-    if (!token) return;
+  // Check follow status for selected user
+  const checkFollowStatus = useCallback(async (userId: number) => {
+    if (!token) return false;
     
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat/contacts`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat/follow/status?user_id=${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
+      
       if (data.success && data.data) {
-        const contact = data.data.find((c: any) => c.id === userId);
-        if (contact) {
-          setFollowStatus({
-            is_following: contact.is_following || false,
-            is_followed_by: contact.is_followed_by || false
-          });
-        } else {
-          setFollowStatus({ is_following: false, is_followed_by: false });
-        }
+        const isFollow = data.data.is_following === true;
+        setIsFollowing(isFollow);
+        return isFollow;
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error checking follow status:', error);
     }
+    return false;
   }, [token]);
 
   // Fetch messages
@@ -155,7 +171,11 @@ export default function ChatPage() {
       const data = await res.json();
       
       if (data.success && data.data) {
-        setMessages(data.data.messages || []);
+        // Urutkan messages dari lama ke baru (agar yang terbaru di bawah)
+        const sortedMessages = [...(data.data.messages || [])].sort((a, b) => 
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        setMessages(sortedMessages);
         scrollToBottom();
       }
     } catch (error) {
@@ -167,12 +187,10 @@ export default function ChatPage() {
 
   // Send message
   const sendMessage = useCallback(async () => {
-    if (!followStatus?.is_following) {
-      toast.error('Follow dulu untuk mengirim pesan');
-      return;
-    }
-    
     if (!token || !selectedConversation || !messageInput.trim()) return;
+    
+    const messageToSend = messageInput.trim();
+    setMessageInput('');
     
     setIsSending(true);
     try {
@@ -188,30 +206,35 @@ export default function ChatPage() {
         },
         body: JSON.stringify({
           receiver_id: receiverId,
-          message: messageInput
+          message: messageToSend
         })
       });
       
       const data = await res.json();
       
       if (data.success && data.data) {
-        setMessages(prev => [data.data, ...prev]);
-        setMessageInput('');
+        setMessages(prev => [...prev, data.data]);
         scrollToBottom();
-        setRefreshKey(prev => prev + 1);
+        fetchConversations();
       } else {
         toast.error(data.message || 'Gagal mengirim pesan');
+        setMessageInput(messageToSend);
       }
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Gagal mengirim pesan');
+      setMessageInput(messageToSend);
     } finally {
       setIsSending(false);
+      inputRef.current?.focus();
     }
-  }, [token, selectedConversation, messageInput, user?.id, followStatus]);
+  }, [token, selectedConversation, messageInput, user?.id, fetchConversations]);
 
   // Follow user
-  const followUser = useCallback(async (userId: number) => {
+  const handleFollow = useCallback(async (userId: number) => {
+    if (!token) return;
+    
+    setIsLoadingFollow(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat/follow`, {
         method: 'POST',
@@ -221,20 +244,26 @@ export default function ChatPage() {
         },
         body: JSON.stringify({ following_id: userId }),
       });
+      
       const data = await res.json();
-      if (data.success) {
-        toast.success('Permintaan follow dikirim');
-        fetchFollowStatus(userId);
-        fetchConversations();
+      
+      if (data.success || data.message === 'sudah follow') {
+        toast.success('Berhasil terhubung! Sekarang Anda bisa chat.');
+        setIsFollowing(true);
+        await fetchConversations();
+        await checkFollowStatus(userId);
       } else {
         toast.error(data.message || 'Gagal follow');
       }
     } catch (error) {
+      console.error('Follow error:', error);
       toast.error('Gagal follow');
+    } finally {
+      setIsLoadingFollow(false);
     }
-  }, [token, fetchFollowStatus, fetchConversations]);
+  }, [token, fetchConversations, checkFollowStatus]);
 
-  // Search users (by username, fullname, email)
+  // Search users
   const searchUsers = useCallback(async () => {
     if (!searchUser.trim()) {
       setSearchResults([]);
@@ -281,9 +310,9 @@ export default function ChatPage() {
         setIsModalOpen(false);
         setSearchUser('');
         setSearchResults([]);
-        fetchConversations();
-        fetchMessages(data.data.id);
-        fetchFollowStatus(otherUser.id);
+        await fetchConversations();
+        await fetchMessages(data.data.id);
+        await checkFollowStatus(otherUser.id);
       }
     } catch (error) {
       console.error('Error starting conversation:', error);
@@ -295,14 +324,8 @@ export default function ChatPage() {
   const selectConversation = async (conv: Conversation) => {
     setSelectedConversation(conv);
     const otherId = conv.participant1_id === user?.id ? conv.participant2_id : conv.participant1_id;
-    await fetchFollowStatus(otherId);
+    await checkFollowStatus(otherId);
     await fetchMessages(conv.id);
-  };
-
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
   };
 
   const handleRefresh = () => {
@@ -312,10 +335,17 @@ export default function ChatPage() {
       const otherId = selectedConversation.participant1_id === user?.id 
         ? selectedConversation.participant2_id 
         : selectedConversation.participant1_id;
-      fetchFollowStatus(otherId);
+      checkFollowStatus(otherId);
     }
-    setRefreshKey(prev => prev + 1);
-    toast.info('Memuat pesan terbaru...');
+    toast.info('Memuat ulang...');
+  };
+
+  // Handle Enter key
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey && isFollowing && !isSending && messageInput.trim()) {
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
   // Initial fetch
@@ -324,6 +354,24 @@ export default function ChatPage() {
       fetchConversations();
     }
   }, [token, fetchConversations]);
+
+  // Refresh follow status when selected conversation changes
+  useEffect(() => {
+    if (selectedConversation && otherParticipant) {
+      checkFollowStatus(otherParticipant.id);
+    }
+  }, [selectedConversation, otherParticipant?.id]);
+
+  // Poll for new messages every 5 seconds
+  useEffect(() => {
+    if (!selectedConversation) return;
+    
+    const interval = setInterval(() => {
+      fetchMessages(selectedConversation.id);
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [selectedConversation, fetchMessages]);
 
   // Search debounce
   useEffect(() => {
@@ -339,26 +387,6 @@ export default function ChatPage() {
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
     };
   }, [searchUser, isModalOpen, searchUsers]);
-
-  // Get other participant info
-  const getOtherParticipant = (conv: Conversation) => {
-    if (conv.participant1_id === user?.id) {
-      return {
-        name: conv.participant2_name,
-        id: conv.participant2_id,
-        avatar: conv.participant2_avatar
-      };
-    }
-    return {
-      name: conv.participant1_name,
-      id: conv.participant1_id,
-      avatar: conv.participant1_avatar
-    };
-  };
-
-  const otherParticipant = selectedConversation ? getOtherParticipant(selectedConversation) : null;
-  const canSend = followStatus?.is_following === true;
-  const canReceiveReply = followStatus?.is_following === true && followStatus?.is_followed_by === true;
 
   if (!token) {
     return (
@@ -454,10 +482,10 @@ export default function ChatPage() {
             <div className="flex-1">
               <p className="font-semibold">{otherParticipant.name}</p>
               <p className="text-xs">
-                {canReceiveReply ? (
-                  <span className="text-green-600">✓ Saling follow</span>
-                ) : canSend ? (
-                  <span className="text-amber-600">⏳ Menunggu follow back untuk membalas</span>
+                {isLoadingFollow ? (
+                  <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+                ) : isFollowing ? (
+                  <span className="text-green-600">✓ Terhubung</span>
                 ) : (
                   <span className="text-gray-400">Follow untuk memulai chat</span>
                 )}
@@ -470,7 +498,7 @@ export default function ChatPage() {
 
           {/* Messages */}
           <ScrollArea className="flex-1 p-4">
-            <div className="flex flex-col-reverse space-y-3 space-y-reverse">
+            <div className="flex flex-col space-y-3">
               {isLoadingMessages ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
@@ -480,11 +508,11 @@ export default function ChatPage() {
                   <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-400">Belum ada pesan</p>
                   <p className="text-xs text-gray-400">
-                    {canSend ? 'Kirim pesan pertama Anda' : 'Follow dulu untuk mengirim pesan'}
+                    {isFollowing ? 'Kirim pesan pertama Anda' : 'Follow dulu untuk mengirim pesan'}
                   </p>
                 </div>
               ) : (
-                [...messages].reverse().map((msg) => {
+                messages.map((msg) => {
                   const isMyMessage = msg.sender_id === user?.id;
                   return (
                     <div
@@ -499,7 +527,7 @@ export default function ChatPage() {
                         }`}
                       >
                         <p className="text-sm break-words">{msg.message}</p>
-                        <div className={`flex items-center gap-1 mt-1 text-xs ${
+                        <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${
                           isMyMessage ? 'text-blue-100' : 'text-gray-400'
                         }`}>
                           <span>
@@ -507,7 +535,7 @@ export default function ChatPage() {
                           </span>
                           {isMyMessage && (
                             msg.is_read ? (
-                              <CheckCheck className="w-3 h-3" />
+                              <CheckCheck className="w-3 h-3 text-blue-300" />
                             ) : (
                               <Check className="w-3 h-3" />
                             )
@@ -526,25 +554,22 @@ export default function ChatPage() {
           <div className="bg-white border-t p-4">
             <div className="flex gap-2">
               <Input
-                placeholder={canSend ? "Tulis pesan..." : "Follow dulu untuk mengirim pesan"}
+                ref={inputRef}
+                placeholder={isFollowing ? "Tulis pesan..." : "Follow dulu untuk mengirim pesan"}
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey && canSend) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                disabled={!canSend}
-                className={!canSend ? "bg-gray-100" : ""}
+                onKeyDown={handleKeyDown}
+                disabled={!isFollowing || isSending}
+                className={!isFollowing ? "bg-gray-100" : ""}
               />
-              {!canSend ? (
+              {!isFollowing ? (
                 <Button 
-                  onClick={() => otherParticipant && followUser(otherParticipant.id)}
-                  className="bg-blue-500 hover:bg-blue-600"
+                  onClick={() => otherParticipant && handleFollow(otherParticipant.id)}
+                  disabled={isLoadingFollow}
+                  className="bg-blue-500 hover:bg-blue-600 gap-2"
                 >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Follow
+                  {isLoadingFollow ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                  {isLoadingFollow ? 'Memproses...' : 'Follow'}
                 </Button>
               ) : (
                 <Button 
@@ -556,11 +581,6 @@ export default function ChatPage() {
                 </Button>
               )}
             </div>
-            {canSend && !canReceiveReply && (
-              <p className="text-xs text-amber-500 mt-2">
-                * {otherParticipant.name} belum bisa membalas karena belum follow Anda
-              </p>
-            )}
           </div>
         </div>
       ) : (
@@ -588,7 +608,7 @@ export default function ChatPage() {
                   setSearchUser('');
                   setSearchResults([]);
                 }}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -617,28 +637,27 @@ export default function ChatPage() {
             ) : searchResults.length > 0 ? (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {searchResults.map((result) => (
-  <div
-    key={result.id}
-    onClick={() => startConversation(result)}
-    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
-  >
-    <Avatar className="w-10 h-10 shrink-0">
-      <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-500 text-white text-sm">
-        {getInitials(result.fullname || result.username)}
-      </AvatarFallback>
-    </Avatar>
-    <div className="flex-1 min-w-0">
-      <p className="font-medium text-gray-900 text-sm truncate">
-        {result.fullname || result.username}
-      </p>
-      <p className="text-xs text-gray-400 truncate">@{result.username}</p>
-      <p className="text-xs text-gray-400 truncate">{result.email}</p>
-    </div>
-    <Button size="sm" variant="ghost" className="shrink-0">
-      Chat
-    </Button>
-  </div>
-))}
+                  <div
+                    key={result.id}
+                    onClick={() => startConversation(result)}
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+                  >
+                    <Avatar className="w-10 h-10 shrink-0">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-400 to-purple-500 text-white text-sm">
+                        {getInitials(result.fullname || result.username)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 text-sm truncate">
+                        {result.fullname || result.username}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">@{result.username}</p>
+                    </div>
+                    <Button size="sm" variant="ghost" className="shrink-0">
+                      Chat
+                    </Button>
+                  </div>
+                ))}
               </div>
             ) : searchUser && !isSearching ? (
               <div className="text-center py-8">

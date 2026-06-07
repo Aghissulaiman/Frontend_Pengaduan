@@ -53,7 +53,7 @@ export function UserSidebar({ children }: UserSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [notificationCount, setNotificationCount] = useState(3); // Contoh notifikasi
+  const [notificationCount, setNotificationCount] = useState(3);
 
   // Load dark mode preference
   useEffect(() => {
@@ -88,6 +88,7 @@ export function UserSidebar({ children }: UserSidebarProps) {
   ];
 
   const getInitials = (name: string) => {
+    if (!name) return 'U';
     return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
@@ -104,6 +105,9 @@ export function UserSidebar({ children }: UserSidebarProps) {
     if (href === '/home') return pathname === href;
     return pathname.startsWith(href);
   };
+
+  // Profile URL dengan username dari user yang login
+  const profileUrl = user?.username ? `/home/profile/${user.username}` : '/profile';
 
   return (
     <div className={`min-h-screen ${darkMode ? 'dark bg-slate-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
@@ -136,7 +140,7 @@ export function UserSidebar({ children }: UserSidebarProps) {
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
 
-            {/* Notification Button dengan Badge Merah */}
+            {/* Notification Button */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
@@ -175,7 +179,7 @@ export function UserSidebar({ children }: UserSidebarProps) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Province Badge */}
+            {/* Role Badge */}
             <div className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg ${darkMode ? 'bg-blue-500/20' : 'bg-blue-50'}`}>
               <MapPin className={`h-3.5 w-3.5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
               <span className={`text-xs font-medium ${darkMode ? 'text-blue-400' : 'text-blue-700'}`}>Warga</span>
@@ -204,19 +208,23 @@ export function UserSidebar({ children }: UserSidebarProps) {
                   <span className="text-xs text-gray-400 block">{user?.email}</span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {/* 🔥 PROFILE LINK - pake username dinamis */}
                 <DropdownMenuItem asChild>
-                  <Link href="/profile">
-                    <User className="mr-2 h-4 w-4" />Profil
+                  <Link href={profileUrl} className="w-full flex items-center">
+                    <User className="mr-2 h-4 w-4" />
+                    Profil
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/settings">
-                    <Settings className="mr-2 h-4 w-4" />Pengaturan
+                  <Link href="/settings" className="w-full flex items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Pengaturan
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-red-500">
-                  <LogOut className="mr-2 h-4 w-4" />Keluar
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Keluar
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -260,15 +268,17 @@ export function UserSidebar({ children }: UserSidebarProps) {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Avatar className="w-12 h-12 mx-auto ring-2 ring-blue-500/50">
-                    <AvatarFallback className="bg-blue-500 text-white font-bold">
-                      {getInitials(user?.fullname || user?.username || 'U')}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Link href={profileUrl}>
+                    <Avatar className="w-12 h-12 mx-auto ring-2 ring-blue-500/50 cursor-pointer hover:ring-blue-500 transition">
+                      <AvatarFallback className="bg-blue-500 text-white font-bold">
+                        {getInitials(user?.fullname || user?.username || 'U')}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
                 </TooltipTrigger>
                 <TooltipContent side="right">
                   <p>{user?.fullname || user?.username}</p>
-                  <p className="text-xs">Warga</p>
+                  <p className="text-xs">Lihat Profil</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -308,6 +318,22 @@ export function UserSidebar({ children }: UserSidebarProps) {
               );
             })}
           </div>
+          
+          {/* Profile link ketika collapsed */}
+          {collapsed && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-800">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link href={profileUrl} className="flex justify-center">
+                      <User className="w-5 h-5 text-gray-500 hover:text-blue-500 transition" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Profil</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
         </nav>
 
         {/* FOOTER */}

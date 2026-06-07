@@ -24,7 +24,9 @@ import {
   ImageIcon,
   User,
   Hash,
-  ClipboardList
+  ClipboardList,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { createClientSupabaseClient } from '@/lib/supabaseClient';
@@ -43,6 +45,9 @@ interface Complaint {
   category_name: string;
   photo?: string;
   rejected_reason?: string;
+  investigation_result?: string;
+  investigation_evidence?: string;
+  investigation_completed_at?: string;
 }
 
 export default function InvestigatorComplaintDetailPage() {
@@ -55,6 +60,9 @@ export default function InvestigatorComplaintDetailPage() {
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showExistingInvestigation, setShowExistingInvestigation] = useState(true);
+  const [selectedImageModal, setSelectedImageModal] = useState<string | null>(null);
+  const [showImageModal, setShowImageModal] = useState(false);
   
   // Form state
   const [investigationResult, setInvestigationResult] = useState('');
@@ -66,6 +74,15 @@ export default function InvestigatorComplaintDetailPage() {
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const parseExistingEvidence = (evidence: string | undefined): string[] => {
+    if (!evidence) return [];
+    try {
+      return JSON.parse(evidence);
+    } catch {
+      return evidence ? [evidence] : [];
+    }
+  };
 
   const fetchComplaint = useCallback(async () => {
     if (!token || !complaintId) return;
@@ -99,7 +116,6 @@ export default function InvestigatorComplaintDetailPage() {
     }
   }, [token, complaintId, fetchComplaint]);
 
-  // Upload gambar ke Supabase
   const uploadImagesToSupabase = async (files: File[]): Promise<string[]> => {
     const supabase = createClientSupabaseClient();
     const uploadedUrls: string[] = [];
@@ -393,11 +409,15 @@ export default function InvestigatorComplaintDetailPage() {
                 <div className="flex items-start gap-3">
                   <ImageIcon className="w-5 h-5 text-gray-400 mt-0.5" />
                   <div>
-                    <p className="text-sm text-gray-500 mb-2">Bukti Gambar</p>
+                    <p className="text-sm text-gray-500 mb-2">Bukti Gambar Awal</p>
                     <img 
                       src={complaint.photo} 
                       alt="Bukti pengaduan" 
-                      className="w-48 h-48 object-cover rounded-lg border"
+                      className="w-48 h-48 object-cover rounded-lg border cursor-pointer hover:opacity-90"
+                      onClick={() => {
+                        setSelectedImageModal(complaint.photo);
+                        setShowImageModal(true);
+                      }}
                     />
                   </div>
                 </div>
@@ -405,6 +425,59 @@ export default function InvestigatorComplaintDetailPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* 🔥 TAMPILKAN HASIL INVESTIGASI YANG SUDAH ADA (JIKA ADA) 🔥 */}
+        {complaint.investigation_result && (
+          <Card className="mb-6 border-blue-200">
+            <CardContent className="pt-6">
+              <button
+                onClick={() => setShowExistingInvestigation(!showExistingInvestigation)}
+                className="w-full flex items-center justify-between mb-4"
+              >
+                <h2 className="text-lg font-semibold text-blue-800 flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5" />
+                  Hasil Investigasi Sebelumnya
+                </h2>
+                {showExistingInvestigation ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </button>
+              
+              {showExistingInvestigation && (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <p className="text-sm font-medium text-blue-800 mb-2">Hasil Investigasi</p>
+                    <p className="text-gray-700 whitespace-pre-wrap">{complaint.investigation_result}</p>
+                  </div>
+                  
+                  {complaint.investigation_completed_at && (
+                    <p className="text-xs text-gray-500">
+                      Diselesaikan pada: {formatDate(complaint.investigation_completed_at)}
+                    </p>
+                  )}
+                  
+                  {parseExistingEvidence(complaint.investigation_evidence).length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Bukti Investigasi</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {parseExistingEvidence(complaint.investigation_evidence).map((evidence, idx) => (
+                          <div 
+                            key={idx} 
+                            className="aspect-square rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:opacity-90"
+                            onClick={() => {
+                              setSelectedImageModal(evidence);
+                              setShowImageModal(true);
+                            }}
+                          >
+                            <img src={evidence} alt={`Bukti ${idx + 1}`} className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Form Hasil Investigasi */}
         <Card>
@@ -420,7 +493,7 @@ export default function InvestigatorComplaintDetailPage() {
                 <Label className="text-gray-700 text-sm font-medium mb-2 block">
                   Status Investigasi
                 </Label>
-                <div className="flex gap-4">
+                <div className="flex flex-wrap gap-3">
                   <Button
                     type="button"
                     variant={isValid ? "default" : "outline"}
@@ -436,7 +509,7 @@ export default function InvestigatorComplaintDetailPage() {
                     onClick={() => setIsValid(false)}
                   >
                     <XCircle className="w-4 h-4 mr-2" />
-                    Tidak Valid - Laporan Hoax/Tidak Terbukti
+                    Tidak Valid - Laporan Tidak Terbukti
                   </Button>
                 </div>
               </div>
@@ -551,6 +624,16 @@ export default function InvestigatorComplaintDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Image Modal */}
+      {showImageModal && selectedImageModal && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onClick={() => setShowImageModal(false)}>
+          <button className="absolute top-4 right-4 text-white p-2 hover:bg-white/20 rounded-full transition text-xl">
+            ✕
+          </button>
+          <img src={selectedImageModal} alt="Full size" className="max-w-[90vw] max-h-[90vh] object-contain" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </div>
   );
 }

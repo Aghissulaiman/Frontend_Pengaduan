@@ -1,12 +1,12 @@
-import UserProfilePengguna from "@/components/ALL/feed/Profile/Cprofile";
 import { UserSidebar } from "@/components/layout/Navbar";
+import UserProfile from "@/components/user/Profile/Profile";
 
 export default function ProfilePengguna() {
     return (
 
         <>
         <UserSidebar>
-            <UserProfilePengguna/>
+            <UserProfile/>
         </UserSidebar>
         </>
     )
